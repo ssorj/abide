@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+
+from plano import *
+
+released_version = "0.24.0"
+released_archive_stem = f"qpid-proton-{released_version}"
+released_archive_name = f"{released_archive_stem}.tar.gz"
+
+master_archive_stem = "qpid-proton-master"
+master_archive_name = f"{master_archive_stem}.tar.gz"
+
+remove("output")
+
+with working_dir("output"):
+    released_archive_dir = absolute_path(released_archive_stem)
+    released_install_dir = f"{released_archive_dir}-install"
+
+    master_archive_dir = absolute_path(master_archive_stem)
+    master_install_dir = f"{master_archive_dir}-install"
+
+    call("curl -s http://archive.apache.org/dist/qpid/proton/{}/{} -o {}",
+         released_version, released_archive_name, released_archive_name)
+
+    extract_archive(released_archive_name)
+
+    call("curl -sL https://api.github.com/repos/apache/qpid-proton/tarball/master -o {}",
+         master_archive_name)
+
+    extract_archive(master_archive_name)
+
+    move(find_only_one(".", "apache-qpid-proton-*"), master_archive_dir)
+
+    with working_dir(join(released_archive_dir, "bld")):
+        call("cmake .. -DCMAKE_INSTALL_PREFIX={}", released_install_dir, quiet=True)
+        call("make -j8", quiet=True)
+        call("make install", quiet=True)
+    
+    with working_dir(join(master_archive_dir, "bld")):
+        call("cmake .. -DCMAKE_INSTALL_PREFIX={}", master_install_dir, quiet=True)
+        call("make -j8", quiet=True)
+        call("make install", quiet=True)
+
+    names = [
+        "libqpid-proton-core.so",
+        "libqpid-proton-proactor.so",
+        "libqpid-proton.so",
+        "libqpid-proton-cpp.so",
+    ]
+
+    errors = list()
+    
+    for name in names:
+        try:
+            call("abidiff --no-unreferenced-symbols {}/lib64/{} {}/lib64/{}", released_install_dir, name, master_install_dir, name)
+        except CalledProcessError as e:
+            errors.append(e)
+
+    if errors:
+        for e in errors:
+            print(str(e))
+
+        print("FAILED: Detected breaking ABI changes")
+
+        exit(1)
+
+    print("PASSED")
