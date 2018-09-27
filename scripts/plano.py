@@ -133,15 +133,16 @@ def exit(arg=None, *args):
     if _is_string(arg):
         error(arg, args)
         _sys.exit(1)
-    elif isinstance(arg, int):
+
+    if isinstance(arg, int):
         if arg > 0:
             error("Exiting with code {0}", arg)
         else:
             notice("Exiting with code {0}", arg)
 
         _sys.exit(arg)
-    else:
-        raise Exception()
+
+    raise Exception()
 
 def _print_message(category, message, args):
     if _message_output is None:
@@ -175,8 +176,8 @@ def eprint(*args, **kwargs):
     print(*args, file=_sys.stderr, **kwargs)
 
 def flush():
-    _sys.stdout.flush()
-    _sys.stderr.flush()
+    STDOUT.flush()
+    STDERR.flush()
 
 absolute_path = _os.path.abspath
 normalize_path = _os.path.normpath
@@ -237,6 +238,8 @@ def program_name(command=None):
             return file_name(arg)
 
 def which(program_name):
+    assert "PATH" in ENV
+
     for dir in ENV["PATH"].split(PATH_VAR_SEP):
         program = join(dir, program_name)
 
@@ -248,12 +251,16 @@ def read(file):
         return f.read()
 
 def write(file, string):
+    _make_dir(parent_dir(file))
+
     with _codecs.open(file, encoding="utf-8", mode="w") as f:
         f.write(string)
 
     return file
 
 def append(file, string):
+    _make_dir(parent_dir(file))
+
     with _codecs.open(file, encoding="utf-8", mode="a") as f:
         f.write(string)
 
@@ -281,12 +288,16 @@ def read_lines(file):
         return f.readlines()
 
 def write_lines(file, lines):
+    _make_dir(parent_dir(file))
+
     with _codecs.open(file, encoding="utf-8", mode="r") as f:
         f.writelines(lines)
 
     return file
 
 def append_lines(file, lines):
+    _make_dir(parent_dir(file))
+
     with _codecs.open(file, encoding="utf-8", mode="a") as f:
         f.writelines(string)
 
@@ -294,6 +305,8 @@ def append_lines(file, lines):
 
 def prepend_lines(file, lines):
     orig_lines = read_lines(file)
+
+    _make_dir(parent_dir(file))
 
     with _codecs.open(file, encoding="utf-8", mode="w") as f:
         f.writelines(lines)
@@ -327,6 +340,8 @@ def read_json(file):
         return _json.load(f)
 
 def write_json(file, obj):
+    _make_dir(parent_dir(file))
+
     with _codecs.open(file, encoding="utf-8", mode="w") as f:
         return _json.dump(obj, f, indent=4, separators=(",", ": "), sort_keys=True)
 
@@ -354,8 +369,7 @@ class temp_file(object):
         return self.file
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if exists(self.file):
-            _os.remove(self.file)
+        _remove(self.file)
 
 def unique_id(length=16):
     assert length >= 1
@@ -368,7 +382,9 @@ def unique_id(length=16):
 
 def copy(from_path, to_path):
     notice("Copying '{0}' to '{1}'", from_path, to_path)
+    return _copy(from_path, to_path)
 
+def _copy(from_path, to_path):
     if is_dir(to_path):
         to_path = join(to_path, file_name(from_path))
     else:
@@ -383,14 +399,16 @@ def copy(from_path, to_path):
 
 def move(from_path, to_path):
     notice("Moving '{0}' to '{1}'", from_path, to_path)
+    return _move(from_path, to_path)
 
+def _move(from_path, to_path):
     if is_dir(to_path):
         to_path = join(to_path, file_name(from_path))
     else:
         parent_path = parent_dir(to_path)
 
         if parent_path:
-            make_dir(parent_path)
+            _make_dir(parent_path)
 
     _shutil.move(from_path, to_path)
 
@@ -472,6 +490,9 @@ def find_only_one(dir, *patterns):
     if len(paths) == 0:
         return
 
+    if len(paths) != 1:
+        fail("Found multiple files: {0}", ", ".join(paths))
+
     assert len(paths) == 1
 
     return paths[0]
@@ -480,10 +501,13 @@ def string_replace(string, expr, replacement, count=0):
     return _re.sub(expr, replacement, string, count)
 
 def make_dir(dir):
-    notice("Making directory '{}'", dir)
+    notice("Making directory '{0}'", dir)
     return _make_dir(dir)
 
 def _make_dir(dir):
+    if dir == "":
+        return dir
+
     if not exists(dir):
         _os.makedirs(dir)
 
@@ -522,10 +546,10 @@ class working_dir(object):
     def __enter__(self):
         if self.dir is None or self.dir == ".":
             return
-        
+
         if not exists(self.dir):
             _make_dir(self.dir)
-        
+
         self.prev_dir = _change_dir(self.dir)
 
         notice("Using working directory '{0}'", self.dir)
@@ -535,7 +559,7 @@ class working_dir(object):
     def __exit__(self, exc_type, exc_value, traceback):
         if self.dir is None or self.dir == ".":
             return
-        
+
         _change_dir(self.prev_dir)
 
 class temp_working_dir(working_dir):
@@ -545,6 +569,25 @@ class temp_working_dir(working_dir):
     def __exit__(self, exc_type, exc_value, traceback):
         super(temp_working_dir, self).__exit__(exc_type, exc_value, traceback)
         _remove(self.dir)
+
+class working_env(object):
+    def __init__(self, **env_vars):
+        self.env_vars = env_vars
+        self.prev_env_vars = dict()
+
+    def __enter__(self):
+        for name, value in self.env_vars.items():
+            if name in ENV:
+                self.prev_env_vars[name] = ENV[name]
+
+            ENV[name] = str(value)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        for name, value in self.env_vars.items():
+            if name in self.prev_env_vars:
+                ENV[name] = self.prev_env_vars[name]
+            else:
+                del ENV[name]
 
 def call(command, *args, **kwargs):
     proc = start_process(command, *args, **kwargs)
@@ -558,7 +601,7 @@ def call_for_stdout(command, *args, **kwargs):
     kwargs["stdout"] = _subprocess.PIPE
 
     proc = start_process(command, *args, **kwargs)
-    output = proc.communicate()[0]
+    output = proc.communicate()[0].decode("utf-8")
     exit_code = proc.poll()
 
     if exit_code != 0:
@@ -573,7 +616,7 @@ def call_for_stderr(command, *args, **kwargs):
     kwargs["stderr"] = _subprocess.PIPE
 
     proc = start_process(command, *args, **kwargs)
-    output = proc.communicate()[1]
+    output = proc.communicate()[1].decode("utf-8")
     exit_code = proc.poll()
 
     if exit_code != 0:
@@ -730,7 +773,7 @@ def wait_for_process(proc):
             eprint(read(proc.temp_output_file), end="")
 
     if proc.temp_output_file is not None:
-        _os.remove(proc.temp_output_file)
+        _remove(proc.temp_output_file)
 
     return proc.returncode
 
