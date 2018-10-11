@@ -1,6 +1,6 @@
 .PHONY: run
 run:
-	scripts/run
+	scripts/run ${RELEASED_VERSION}
 
 .PHONY: clean
 clean:

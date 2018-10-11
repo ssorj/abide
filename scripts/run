@@ -2,7 +2,10 @@
 
 from plano import *
 
-released_version = "0.24.0"
+if len(ARGS) < 2:
+    fail("RELEASED_VERSION must be supplied")
+
+released_version = ARGS[1]
 released_archive_stem = f"qpid-proton-{released_version}"
 released_archive_name = f"{released_archive_stem}.tar.gz"
 
