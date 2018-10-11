@@ -3,7 +3,10 @@
 from plano import *
 
 if len(ARGS) < 2:
-    fail("RELEASED_VERSION must be supplied")
+    exit("The RELEASED_VERSION parameter is required")
+
+if not which("abidiff"):
+    exit("The abidiff command from the libabigail package is required")
 
 released_version = ARGS[1]
 released_archive_stem = f"qpid-proton-{released_version}"
