@@ -40,7 +40,7 @@ with working_dir("output"):
         call("cmake .. -DCMAKE_INSTALL_PREFIX={}", released_install_dir, quiet=True)
         call("make -j8", quiet=True)
         call("make install", quiet=True)
-    
+
     with working_dir(join(main_archive_dir, "bld")):
         call("cmake .. -DCMAKE_INSTALL_PREFIX={}", main_install_dir, quiet=True)
         call("make -j8", quiet=True)
@@ -54,10 +54,10 @@ with working_dir("output"):
     ]
 
     errors = list()
-    
+
     for name in names:
         try:
-            call("abidiff --no-unreferenced-symbols {}/lib64/{} {}/lib64/{}", released_install_dir, name, main_install_dir, name)
+            call("abidiff {}/lib64/{} {}/lib64/{}", released_install_dir, name, main_install_dir, name)
         except CalledProcessError as e:
             errors.append(e)
 
