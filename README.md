@@ -3,7 +3,7 @@
 Check new Qpid Proton releases for ABI changes.
 
     $ cd abide/
-    $ make run RELEASED_VERSION=0.26.0
+    $ make run RELEASED_VERSION=0.38.0
 
 ## Dependencies
 
