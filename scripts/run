@@ -37,16 +37,17 @@ with working_dir("output"):
     move(find_only_one(".", "apache-qpid-proton-*"), main_archive_dir)
 
     with working_dir(join(released_archive_dir, "bld")):
-        call("cmake .. -DCMAKE_INSTALL_PREFIX={}", released_install_dir, quiet=True)
+        call("cmake .. -DBUILD_TLS=ON -DCMAKE_INSTALL_PREFIX={}", released_install_dir, quiet=True)
         call("make -j8", quiet=True)
         call("make install", quiet=True)
 
     with working_dir(join(main_archive_dir, "bld")):
-        call("cmake .. -DCMAKE_INSTALL_PREFIX={}", main_install_dir, quiet=True)
+        call("cmake .. -DBUILD_TLS=ON -DCMAKE_INSTALL_PREFIX={}", main_install_dir, quiet=True)
         call("make -j8", quiet=True)
         call("make install", quiet=True)
 
     names = [
+        "libqpid-proton-tls.so",
         "libqpid-proton-core.so",
         "libqpid-proton-proactor.so",
         "libqpid-proton.so",
