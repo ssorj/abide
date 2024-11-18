@@ -24,7 +24,7 @@ with working_dir("output"):
     main_archive_dir = absolute_path(main_archive_stem)
     main_install_dir = f"{main_archive_dir}-install"
 
-    call("curl -s http://archive.apache.org/dist/qpid/proton/{}/{} -o {}",
+    call("curl -s https://archive.apache.org/dist/qpid/proton/{}/{} -o {}",
          released_version, released_archive_name, released_archive_name)
 
     extract_archive(released_archive_name)
@@ -37,12 +37,12 @@ with working_dir("output"):
     move(find_only_one(".", "apache-qpid-proton-*"), main_archive_dir)
 
     with working_dir(join(released_archive_dir, "bld")):
-        call("cmake .. -DBUILD_TLS=ON -DCMAKE_INSTALL_PREFIX={}", released_install_dir, quiet=True)
+        call("cmake .. -DBUILD_TLS=ON -DCMAKE_INSTALL_PREFIX={} -DBUILD_BINDINGS=\"cpp\"", released_install_dir, quiet=True)
         call("make -j8", quiet=True)
         call("make install", quiet=True)
 
     with working_dir(join(main_archive_dir, "bld")):
-        call("cmake .. -DBUILD_TLS=ON -DCMAKE_INSTALL_PREFIX={}", main_install_dir, quiet=True)
+        call("cmake .. -DBUILD_TLS=ON -DCMAKE_INSTALL_PREFIX={} -DBUILD_BINDINGS=\"cpp\"", main_install_dir, quiet=True)
         call("make -j8", quiet=True)
         call("make install", quiet=True)
 
